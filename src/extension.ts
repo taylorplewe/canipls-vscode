@@ -6,16 +6,18 @@ import {
     TransportKind,
 } from 'vscode-languageclient/node';
 
-let client: LanguageClient;
+let client: LanguageClient | undefined;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+    console.log('canipls activated');
+
     context.subscriptions.push(
-        vscode.commands.registerCommand("caniuse-ls.restartLanguageServer", async () => {
+        vscode.commands.registerCommand("canipls.restartLanguageServer", async () => {
             vscode.window.showInformationMessage("Ayyyy lmao");
         })
     );
 
-    const exeName = "caniuse-ls" + (process.platform === "win32" ? ".exe" : "");
+    const exeName = "C:\\Users\\tplew\\webroot\\canipls\\zig-out\\bin\\canipls.exe";
 
     const serverOptions: ServerOptions = {
         command: exeName,
@@ -27,29 +29,29 @@ export function activate(context: vscode.ExtensionContext) {
 
     const clientOptions: LanguageClientOptions = {
         documentSelector: [
-            { scheme: "file", language: "HTML" },
-            { scheme: "file", language: "CSS" },
-            { scheme: "file", language: "JavaScript" },
-            { scheme: "file", language: "TypeScript" },
-            { scheme: "file", language: "JavaScript JSX" },
-            { scheme: "file", language: "TypeScript JSX" },
+            { scheme: "file", language: "html" },
+            { scheme: "file", language: "css" },
+            { scheme: "file", language: "javascript" },
+            { scheme: "file", language: "typescript" },
+            { scheme: "file", language: "javascriptreact" },
+            { scheme: "file", language: "typescriptreact" },
             { scheme: "file", language: "vue" },
-            { scheme: "file", language: "Svelte" },
-            { scheme: "file", language: "Astro" },
+            { scheme: "file", language: "svelte" },
+            { scheme: "file", language: "astro" },
         ],
     };
 
     client = new LanguageClient(
-        "caniuse-ls",
-        "CanIUse LS",
+        "canipls",
+        "canipls",
         serverOptions,
         clientOptions,
     );
 
-    console.log('here?')
-    client.start();
+    await client.start();
 }
 
-export function deactivate() {
-    if (client) client.stop();
+export async function deactivate() {
+    await client?.dispose();
+    client = undefined;
 }

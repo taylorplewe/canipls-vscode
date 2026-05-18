@@ -1,2 +1,2 @@
-# caniuse-ls-vscode
-VS Code extension for caniuse-ls
+# canipls-vscode
+VS Code extension for canipls
