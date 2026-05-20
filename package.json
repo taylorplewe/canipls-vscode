@@ -6,6 +6,7 @@
   "engines": {
     "vscode": "^1.118.0"
   },
+  "publisher": "taylorplewe",
   "categories": [],
   "activationEvents": [
     "onLanguage:plaintext",
@@ -58,6 +59,7 @@
     "typescript-eslint": "^8.56.1"
   },
   "dependencies": {
+    "extract-zip": "^2.0.1",
     "vscode-languageclient": "^9.0.1"
   }
 }
