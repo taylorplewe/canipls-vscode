@@ -36,7 +36,7 @@ class SemVer {
         if (other.minor > this.minor) return false;
         if (other.minor < this.minor) return true;
         if (other.patch > this.patch) return false;
-        return true;
+        return false;
     }
 }
 
@@ -68,43 +68,51 @@ export async function activate(context: vscode.ExtensionContext) {
     const latestReleaseResponse: any = await fetch(CANIPLS_LATEST_RELEASE_URL).then(res => res.json());
     console.log('latest release res: ', latestReleaseResponse);
 
-    const installedSemVer = new SemVer("0.0.0");
     const latestSemVer = new SemVer(latestReleaseResponse.name);
 
-    if (latestSemVer.gt(installedSemVer)) {
-        console.log('newer version available');
+    let shouldDownloadLatest = false;
+
+    // get installed version if exists
+    const installedVersionPath = vscode.Uri.joinPath(context.globalStorageUri, "latest");
+    try {
+        const installedBytes = await vscode.workspace.fs.readFile(installedVersionPath);
+        const installedSemVer = new SemVer(installedBytes.toString());
+        if (latestSemVer.gt(installedSemVer)) {
+            shouldDownloadLatest = true;
+        }
+    } catch {
+        shouldDownloadLatest = true;
     }
 
-    let latestArchiveUrl: string;
-    let caniplsArchivePath: vscode.Uri = vscode.Uri.parse("");
-    for (const asset of latestReleaseResponse.assets) {
-        if (asset.name.indexOf(`${arch}-${os}`) !== -1) {
-            console.log('asset url:', asset.url);
-            const archiveRes = await fetch(asset.url, { headers: {"Accept": "application/octet-stream"} });
-            console.log('content-length: ', archiveRes.headers.get("content-length"));
-            const archiveData = Buffer.from(await archiveRes.arrayBuffer());
-            caniplsArchivePath = vscode.Uri.joinPath(context.globalStorageUri, asset.name);
+    if (shouldDownloadLatest) {
+        console.log('downloading latest canipls version...');
+        let caniplsArchivePath: vscode.Uri = vscode.Uri.parse("");
+        for (const asset of latestReleaseResponse.assets) {
+            if (asset.name.indexOf(`${arch}-${os}`) !== -1) {
+                console.log('asset url:', asset.url);
+                const archiveRes = await fetch(asset.url, { headers: {"Accept": "application/octet-stream"} });
+                console.log('content-length: ', archiveRes.headers.get("content-length"));
+                const archiveData = Buffer.from(await archiveRes.arrayBuffer());
+                caniplsArchivePath = vscode.Uri.joinPath(context.globalStorageUri, asset.name);
 
-            // write archive to directory
-            await vscode.workspace.fs.writeFile(caniplsArchivePath, archiveData);
+                // write archive to directory
+                await vscode.workspace.fs.writeFile(caniplsArchivePath, archiveData);
 
-            console.log('caniplsExePath:', caniplsArchivePath.fsPath);
-            console.log('context.globalStorageUri:', context.globalStorageUri.toString());
+                // extract zip
+                // TODO: do tar if on unix systems
+                console.log('extracting archive...');
+                await extract(caniplsArchivePath.fsPath, { dir: context.globalStorageUri.fsPath });
 
-            // extract zip
-            await extract(caniplsArchivePath.fsPath, { dir: context.globalStorageUri.fsPath });
+                console.log('extracted!');
 
-            console.log('extracted!');
+                // write latest version installed
+                await vscode.workspace.fs.writeFile(installedVersionPath, Buffer.from(latestReleaseResponse.name));
 
-            // cleanup (delete archive)
-            await vscode.workspace.fs.delete(caniplsArchivePath);
+                // cleanup (delete archive)
+                await vscode.workspace.fs.delete(caniplsArchivePath);
+            }
         }
     }
-
-
-
-
-
 
     const caniplsExePath = vscode.Uri.joinPath(context.globalStorageUri, `canipls${process.platform === "win32" ? ".exe" : ""}`);
     console.log('running exe: ', caniplsExePath.fsPath);
