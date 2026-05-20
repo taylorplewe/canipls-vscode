@@ -6,6 +6,7 @@ import {
     TransportKind,
 } from 'vscode-languageclient/node';
 import extract from 'extract-zip';
+import childProcess from 'child_process';
 
 let client: LanguageClient | undefined;
 
@@ -101,7 +102,11 @@ export async function activate(context: vscode.ExtensionContext) {
                 // extract zip
                 // TODO: do tar if on unix systems
                 console.log('extracting archive...');
-                await extract(caniplsArchivePath.fsPath, { dir: context.globalStorageUri.fsPath });
+                if (process.platform === "win32") {
+                    await extract(caniplsArchivePath.fsPath, { dir: context.globalStorageUri.fsPath });
+                } else {
+                    childProcess.exec(`tar xzf ${caniplsArchivePath.fsPath}`);
+                }
 
                 console.log('extracted!');
 
@@ -109,7 +114,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 await vscode.workspace.fs.writeFile(installedVersionPath, Buffer.from(latestReleaseResponse.name));
 
                 // cleanup (delete archive)
-                await vscode.workspace.fs.delete(caniplsArchivePath);
+                await vscode.workspace.fs.delete(caniplsArchivePath, { useTrash: false });
             }
         }
     }
