@@ -9,8 +9,10 @@ import extract from 'extract-zip';
 import childProcess from 'child_process';
 
 let client: LanguageClient | undefined;
+let caniplsExePath: vscode.Uri;
 
 const CANIPLS_REPO = "taylorplewe/canipls";
+const CANIPLS_VSCODE_ID = "canipls";
 const CANIPLS_LATEST_RELEASE_URL = `https://api.github.com/repos/${CANIPLS_REPO}/releases/latest`;
 
 class SemVer {
@@ -44,44 +46,21 @@ class SemVer {
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     context.subscriptions.push(
         vscode.commands.registerCommand("canipls.restartLanguageServer", async () => {
-            vscode.window.showInformationMessage("Ayyyy lmao");
+            restartClient();
+            vscode.window.showInformationMessage("Restarted canipls server");
         })
     );
 
-    await getLatestCaniplsVersion(context);
+    // allow user to override the path to their LSP executable
+    const overridePath = vscode.workspace.getConfiguration(CANIPLS_VSCODE_ID).get<string>("path");
+    if (overridePath) {
+        caniplsExePath = vscode.Uri.parse(overridePath);
+    } else {
+        await getLatestCaniplsVersion(context);
+        caniplsExePath = vscode.Uri.joinPath(context.globalStorageUri, `canipls${process.platform === "win32" ? ".exe" : ""}`);
+    }
 
-    const caniplsExePath = vscode.Uri.joinPath(context.globalStorageUri, `canipls${process.platform === "win32" ? ".exe" : ""}`);
-
-    const serverOptions: ServerOptions = {
-        command: caniplsExePath.fsPath,
-        transport: TransportKind.stdio,
-        options: {
-            shell: true,
-        },
-    };
-
-    const clientOptions: LanguageClientOptions = {
-        documentSelector: [
-            { scheme: "file", language: "html" },
-            { scheme: "file", language: "css" },
-            { scheme: "file", language: "javascript" },
-            { scheme: "file", language: "typescript" },
-            { scheme: "file", language: "javascriptreact" },
-            { scheme: "file", language: "typescriptreact" },
-            { scheme: "file", language: "vue" },
-            { scheme: "file", language: "svelte" },
-            { scheme: "file", language: "astro" },
-        ],
-    };
-
-    client = new LanguageClient(
-        "canipls",
-        "canipls",
-        serverOptions,
-        clientOptions,
-    );
-
-    await client.start();
+    await restartClient();
 }
 
 export const deactivate = stopClient;
@@ -160,4 +139,42 @@ async function stopClient(): Promise<void> {
     client = undefined;
     await oldClient.stop(); // The `stop` call will send the "shutdown" notification to the LSP
     await oldClient.dispose(); // The `dipose` call will send the "exit" request to the LSP which actually tells the child process to exit
+}
+
+async function startClient(): Promise<void> {
+    const serverOptions: ServerOptions = {
+        command: caniplsExePath.fsPath,
+        transport: TransportKind.stdio,
+        options: {
+            shell: true,
+        },
+    };
+
+    const clientOptions: LanguageClientOptions = {
+        documentSelector: [
+            { scheme: "file", language: "html" },
+            { scheme: "file", language: "css" },
+            { scheme: "file", language: "javascript" },
+            { scheme: "file", language: "typescript" },
+            { scheme: "file", language: "javascriptreact" },
+            { scheme: "file", language: "typescriptreact" },
+            { scheme: "file", language: "vue" },
+            { scheme: "file", language: "svelte" },
+            { scheme: "file", language: "astro" },
+        ],
+    };
+
+    client = new LanguageClient(
+        "canipls",
+        "canipls",
+        serverOptions,
+        clientOptions,
+    );
+
+    await client.start();
+}
+
+async function restartClient(): Promise<void> {
+    await stopClient();
+    await startClient();
 }

@@ -38,7 +38,7 @@
     "configuration": {
       "type": "object",
       "properties": {
-        "canipls.lsp.path": {
+        "canipls.path": {
           "scope": "window",
           "type": "string",
           "default": "",
