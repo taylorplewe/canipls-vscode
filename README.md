@@ -1,2 +1,4 @@
 # canipls-vscode
 VS Code extension for canipls
+
+![demo](https://camo.githubusercontent.com/08fb82d96a7fbe290b39f8f1f87e1eada3e775fb4618e5bff13f60e24fbdcfda/68747470733a2f2f7768656e63616e697573652e636f6d2f67682f63616e69706c732d64656d6f2d6a732e676966)
