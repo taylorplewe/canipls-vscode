@@ -41,92 +41,16 @@ class SemVer {
     }
 }
 
-export async function activate(context: vscode.ExtensionContext) {
-    console.log('canipls activated');
-    console.log('globalStorageUri:', context.globalStorageUri);
-
-    // TODO: check if there's an installed version of canipls at globalStorage/taylorplewe.canipls/
-
-    let arch: string = process.arch;
-    switch (process.arch) {
-        case "x64":
-            arch = "x86_64";
-            break;
-        case "arm64":
-            arch = "aarch64";
-            break;
-    }
-    let os: string = process.platform;
-    switch (process.platform) {
-        case "win32":
-            os = "windows";
-            break;
-        case "darwin":
-            os = "macos";
-            break;
-    }
-
-    const latestReleaseResponse: any = await fetch(CANIPLS_LATEST_RELEASE_URL).then(res => res.json());
-    console.log('latest release res: ', latestReleaseResponse);
-
-    const latestSemVer = new SemVer(latestReleaseResponse.name);
-
-    let shouldDownloadLatest = false;
-
-    // get installed version if exists
-    const installedVersionPath = vscode.Uri.joinPath(context.globalStorageUri, "latest");
-    try {
-        const installedBytes = await vscode.workspace.fs.readFile(installedVersionPath);
-        const installedSemVer = new SemVer(installedBytes.toString());
-        if (latestSemVer.gt(installedSemVer)) {
-            shouldDownloadLatest = true;
-        }
-    } catch {
-        shouldDownloadLatest = true;
-    }
-
-    if (shouldDownloadLatest) {
-        console.log('downloading latest canipls version...');
-        let caniplsArchivePath: vscode.Uri = vscode.Uri.parse("");
-        for (const asset of latestReleaseResponse.assets) {
-            if (asset.name.indexOf(`${arch}-${os}`) !== -1) {
-                console.log('asset url:', asset.url);
-                const archiveRes = await fetch(asset.url, { headers: {"Accept": "application/octet-stream"} });
-                console.log('content-length: ', archiveRes.headers.get("content-length"));
-                const archiveData = Buffer.from(await archiveRes.arrayBuffer());
-                caniplsArchivePath = vscode.Uri.joinPath(context.globalStorageUri, asset.name);
-
-                // write archive to directory
-                await vscode.workspace.fs.writeFile(caniplsArchivePath, archiveData);
-
-                // extract zip
-                // TODO: do tar if on unix systems
-                console.log('extracting archive...');
-                if (process.platform === "win32") {
-                    await extract(caniplsArchivePath.fsPath, { dir: context.globalStorageUri.fsPath });
-                } else {
-                    childProcess.exec(`tar xzf ${caniplsArchivePath.fsPath}`);
-                }
-
-                console.log('extracted!');
-
-                // write latest version installed
-                await vscode.workspace.fs.writeFile(installedVersionPath, Buffer.from(latestReleaseResponse.name));
-
-                // cleanup (delete archive)
-                await vscode.workspace.fs.delete(caniplsArchivePath, { useTrash: false });
-            }
-        }
-    }
-
-    const caniplsExePath = vscode.Uri.joinPath(context.globalStorageUri, `canipls${process.platform === "win32" ? ".exe" : ""}`);
-    console.log('running exe: ', caniplsExePath.fsPath);
-
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
     context.subscriptions.push(
         vscode.commands.registerCommand("canipls.restartLanguageServer", async () => {
             vscode.window.showInformationMessage("Ayyyy lmao");
         })
     );
+
+    await getLatestCaniplsVersion(context);
+
+    const caniplsExePath = vscode.Uri.joinPath(context.globalStorageUri, `canipls${process.platform === "win32" ? ".exe" : ""}`);
 
     const serverOptions: ServerOptions = {
         command: caniplsExePath.fsPath,
@@ -160,9 +84,80 @@ export async function activate(context: vscode.ExtensionContext) {
     await client.start();
 }
 
-export async function deactivate() {
-    await client?.dispose();
-    client = undefined;
+export const deactivate = stopClient;
+
+async function getLatestCaniplsVersion(context: vscode.ExtensionContext): Promise<void> {
+    // get latest canipls release from GitHub
+    let arch: string = process.arch;
+    switch (process.arch) {
+        case "x64":
+            arch = "x86_64";
+            break;
+        case "arm64":
+            arch = "aarch64";
+            break;
+    }
+    let os: string = process.platform;
+    switch (process.platform) {
+        case "win32":
+            os = "windows";
+            break;
+        case "darwin":
+            os = "macos";
+            break;
+    }
+    const latestReleaseResponse: any = await fetch(CANIPLS_LATEST_RELEASE_URL).then(res => res.json());
+    const latestSemVer = new SemVer(latestReleaseResponse.name);
+
+    let shouldDownloadLatest = false;
+
+    // get installed version if exists
+    const installedVersionPath = vscode.Uri.joinPath(context.globalStorageUri, "latest");
+    try {
+        const installedBytes = await vscode.workspace.fs.readFile(installedVersionPath);
+        const installedSemVer = new SemVer(installedBytes.toString());
+        if (latestSemVer.gt(installedSemVer)) {
+            shouldDownloadLatest = true;
+        }
+    } catch {
+        shouldDownloadLatest = true;
+    }
+
+    // download latest release archive, expand into executable
+    if (shouldDownloadLatest) {
+        console.log('downloading latest canipls version...');
+        let caniplsArchivePath: vscode.Uri = vscode.Uri.parse("");
+        for (const asset of latestReleaseResponse.assets) {
+            if (asset.name.indexOf(`${arch}-${os}`) !== -1) {
+                const archiveRes = await fetch(asset.url, { headers: {"Accept": "application/octet-stream"} });
+                const archiveData = Buffer.from(await archiveRes.arrayBuffer());
+                caniplsArchivePath = vscode.Uri.joinPath(context.globalStorageUri, asset.name);
+
+                // write archive to directory
+                await vscode.workspace.fs.writeFile(caniplsArchivePath, archiveData);
+
+                // extract archive
+                if (process.platform === "win32") {
+                    await extract(caniplsArchivePath.fsPath, { dir: context.globalStorageUri.fsPath });
+                } else {
+                    childProcess.exec(`tar xzf ${caniplsArchivePath.fsPath}`);
+                }
+
+                // record installed version
+                await vscode.workspace.fs.writeFile(installedVersionPath, Buffer.from(latestReleaseResponse.name));
+
+                // cleanup (delete archive)
+                await vscode.workspace.fs.delete(caniplsArchivePath, { useTrash: false });
+            }
+        }
+    }
 }
 
-// HELPFUL STUFF I MIGHT NEED
+// https://codeberg.org/ziglang/vscode-zig/src/commit/b4ab446da2400ec23a8dc27152865328f5da7ccc/src/zls.ts#L75-L83
+async function stopClient(): Promise<void> {
+    if (!client) return;
+    const oldClient = client;
+    client = undefined;
+    await oldClient.stop(); // The `stop` call will send the "shutdown" notification to the LSP
+    await oldClient.dispose(); // The `dipose` call will send the "exit" request to the LSP which actually tells the child process to exit
+}

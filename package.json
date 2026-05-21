@@ -6,8 +6,15 @@
   "engines": {
     "vscode": "^1.118.0"
   },
+  "icon": "icon.png",
   "publisher": "taylorplewe",
-  "categories": [],
+  "categories": [
+    "Linters"
+  ],
+  "repository": {
+      "type": "git",
+      "url": "https://github.com/taylorplewe/canipls-vscode"
+  },
   "activationEvents": [
     "onLanguage:plaintext",
     "onLanguage:HTML",
