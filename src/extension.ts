@@ -39,6 +39,7 @@ class SemVer {
         if (other.minor > this.minor) return false;
         if (other.minor < this.minor) return true;
         if (other.patch > this.patch) return false;
+        if (other.patch < this.patch) return true;
         return false;
     }
 }
