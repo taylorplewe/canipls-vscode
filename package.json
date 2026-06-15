@@ -2,7 +2,7 @@
   "name": "canipls",
   "displayName": "canipls",
   "description": "See caniuse support info for APIs right in your editor",
-  "version": "0.0.2",
+  "version": "0.1.1",
   "engines": {
     "vscode": "^1.118.0"
   },

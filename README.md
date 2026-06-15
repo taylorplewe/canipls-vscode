@@ -1,6 +1,8 @@
 VS Code extension wrapper around [canipls](https://github.com/taylorplewe/canipls).
 
 # canipls
+[![Tests CI results](https://github.com/taylorplewe/canipls/actions/workflows/tests.yml/badge.svg)](https://github.com/taylorplewe/canipls/actions/workflows/tests.yml)
+
 (Pronounced "can I please", á la [gopls](https://go.dev/gopls/))
 
 A language server that shows [caniuse.com](https://caniuse.com) support percentages for web features, right in your editor.
@@ -19,6 +21,9 @@ Supported file types:
 - Vue
 - Svelte
 - Astro
+
+> [!IMPORTANT]
+> While global support percentages in canipls rarely match 1:1 those of caniuse's, _they are never more than 1% off_, and rarely more than about 0.1% off. canipls data is refreshed once a day, but caniuse.com does not divulge all of its data sources.
 
 ## Usage
 
@@ -46,9 +51,9 @@ const now = Temporal.Now.instant(); // canipls-ignore
 ```
 
 ## Config
-`canipls` will search the following places for configuration options, in order of precedence:
-1. a file called `.canipls.cfg` in the current project's root directory
-2. a file called `canipls.cfg` in the user's global app config directory
+`canipls` can be configured, and upon startup, will search the following places for configuration options, in order of precedence:
+1. a file called `.canipls.json` in the current project's root directory
+2. a file called `canipls.json` in the user's global app config directory
     - on Windows, this is found at `%HOME%/AppData/Roaming/canipls/`
     - on macOS and Linux, this is found at `~/.config/canipls/`
 3. use the default values (see below table)
@@ -59,13 +64,35 @@ The following configuration options are available:
 | - | - | - | - |
 | `support_threshold` | number | `90.0` | The minimum global browser support threshold, according to caniuse, that features must meet |
 | `show_low_support_warnings` | boolean | `true` | Whether to show warning diagnostics for features that fall below the desired support threshold. (If this is set to `false`, `support_threshold` has no effect.) |
+| `ignored_feature_ids` | string[] | `[]` | List of caniuse feature IDs (without the `mdn-` prefix) which should be ignored when throwing warning diagnostics; may include a trailing `*` wildcard |
 
-Config files are simply plain text files containing one or more of the above config options, separated by newlines, with key/value pairs separated by a space:
-```
-support_threshold 80.0
-show_low_support_warnings true
+<details>
+<summary>Where can I find a feature's caniuse ID?</summary>
+
+Search for the feature you want on caniuse.com, and click the big `#` button to the left of the feature card:
+    
+<img width="391" height="366" alt="image" src="https://github.com/user-attachments/assets/fe30904e-de30-4f83-b565-8c26e61f5ddc" />
+
+The caniuse feature ID is the URL following "`caniuse.com/`", but canipls is only concerned with what follows `mdn-`:
+
+<img width="375" height="43" alt="image" src="https://github.com/user-attachments/assets/7e4faf84-2ab8-4ffd-8807-9d07853128e0" />
+
+</details>
+
+Example:
+```json
+{
+    "support_threshold": 80.0,
+    "show_low_support_warnings": true,
+    "ignored_feature_ids": [
+        "css_properties_cursor_*",
+        "javascript_builtins_temporal"
+    ]
+}
 ```
 
 ---
+If you come across any strange or incorrect behavior, please let me know at tplewe@outlook.com.
 
-This project was researched, designed, and written completely by hand. Among other reasons, quality is a higher priority than quantity for this project. Pull requests that contain AI-generated content of any kind will be rejected.
+> [!NOTE]
+> This project is researched, designed, and written completely by hand. Among other reasons, **quality is a higher priority than quantity for this project.** Pull requests that contain AI-generated content of any kind will be rejected.
